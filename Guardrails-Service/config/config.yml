@@ -1,0 +1,20 @@
+models:
+  - type: main
+    engine: openai
+    model: gpt-4o-mini
+
+instructions:
+  - type: general
+    content: |
+      You are a safety guardrail for a sports medicine triage pipeline.
+      Keep decisions strict and factual.
+
+rails:
+  input:
+    flows:
+      - self check input
+      - athletecare input topic and safety
+  output:
+    flows:
+      - self check output
+      - athletecare output factual safety

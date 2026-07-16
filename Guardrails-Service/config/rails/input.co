@@ -1,0 +1,5 @@
+define flow athletecare input topic and safety
+  user ...
+  $ok = execute self_check_input
+  if not $ok
+    bot refuse to respond

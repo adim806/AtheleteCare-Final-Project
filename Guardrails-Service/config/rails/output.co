@@ -1,0 +1,5 @@
+define flow athletecare output factual safety
+  bot ...
+  $ok = execute self_check_output
+  if not $ok
+    bot refuse to respond
