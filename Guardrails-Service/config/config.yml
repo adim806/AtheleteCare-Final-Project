@@ -13,8 +13,6 @@ rails:
   input:
     flows:
       - self check input
-      - athletecare input topic and safety
   output:
     flows:
       - self check output
-      - athletecare output factual safety

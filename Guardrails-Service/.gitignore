@@ -5,6 +5,7 @@
 
 # Virtual environments
 .venv/
+.venv311/
 venv/
 env/
 
@@ -12,43 +13,25 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-
-# NeMo Guardrails cache
-.cache/
-local_cache/
-
-# Logs
-*.log
-logs/
-
-# Testing / type checking
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-
-# Build artifacts
+*.egg-info/
+.eggs/
 dist/
 build/
-*.egg-info/
+*.egg
 
-# IDE
+# Testing / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
 .vscode/
 .idea/
-.history/
-
-# OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# ---------------------------------------------------------------------------
-# RAG Service (sibling) – heavy local artifacts (never commit)
-# ---------------------------------------------------------------------------
-../RAG-Service/models/*.gguf
-../RAG-Service/models/*.bin
-../RAG-Service/models/*.safetensors
-../RAG-Service/chroma_db/
-../RAG-Service/.venv/
-../RAG-Service/.env
+# Logs / local runtime
+*.log
+.ngrok/

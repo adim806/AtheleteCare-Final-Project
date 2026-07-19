@@ -1,5 +1,10 @@
 # Monorepo – shared ignore rules for AthleteCare services
 
+# Root local env / venv (dev leftovers)
+.env
+.venv/
+.venv311/
+
 # RAG Service – local LLM & vector store
 RAG-Service/models/*.gguf
 RAG-Service/models/*.bin
@@ -10,6 +15,7 @@ RAG-Service/.env
 
 # Guardrails Service
 Guardrails-Service/.venv/
+Guardrails-Service/.venv311/
 Guardrails-Service/.env
 
 # Python
