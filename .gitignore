@@ -1,0 +1,22 @@
+# Monorepo – shared ignore rules for AthleteCare services
+
+# RAG Service – local LLM & vector store
+RAG-Service/models/*.gguf
+RAG-Service/models/*.bin
+RAG-Service/models/*.safetensors
+RAG-Service/chroma_db/
+RAG-Service/.venv/
+RAG-Service/.env
+
+# Guardrails Service
+Guardrails-Service/.venv/
+Guardrails-Service/.env
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+
+# IDE
+.vscode/
+.idea/

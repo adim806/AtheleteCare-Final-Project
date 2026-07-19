@@ -42,3 +42,13 @@ build/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ---------------------------------------------------------------------------
+# RAG Service (sibling) – heavy local artifacts (never commit)
+# ---------------------------------------------------------------------------
+../RAG-Service/models/*.gguf
+../RAG-Service/models/*.bin
+../RAG-Service/models/*.safetensors
+../RAG-Service/chroma_db/
+../RAG-Service/.venv/
+../RAG-Service/.env

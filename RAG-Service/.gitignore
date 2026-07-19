@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Vector store (generated at ingest time)
+chroma_db/
+
+# Local LLM weights (large binary files – never commit)
+models/*.gguf
+models/*.bin
+models/*.safetensors
+!models/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
