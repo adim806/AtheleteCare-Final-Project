@@ -1,0 +1,33 @@
+{
+  "name": "AthleteCare — rag_service HTTP Tool (fragment)",
+  "nodes": [
+    {
+      "parameters": {
+        "toolDescription": "Search club medical cases and protocols for historical precedents, rehab timelines, and evidence-based clinical insight. Call this for every injury description before drafting the clinical brief. Input: full injury description text.",
+        "method": "POST",
+        "url": "https://sources-steven-tee-functions.trycloudflare.com/query",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"description\": {{ JSON.stringify($fromAI('description', 'Full injury description or clinical query text')) }}\n}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "rag-http-tool-001",
+      "name": "rag_service",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [640, 480]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "notes": "Import this, replace REPLACE_WITH_RAG_NGROK with your ngrok HTTPS host for port 8001, then connect the tool output to the AI Agent ai_tool input."
+  },
+  "tags": []
+}

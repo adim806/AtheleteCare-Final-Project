@@ -1,0 +1,17 @@
+{
+  "executionEnvironments": [
+    {
+      "root": "RAG-Service",
+      "venvPath": "RAG-Service",
+      "venv": ".venv",
+      "pythonVersion": "3.11",
+      "extraPaths": ["RAG-Service"]
+    },
+    {
+      "root": "Guardrails-Service",
+      "venvPath": "Guardrails-Service",
+      "venv": ".venv311",
+      "pythonVersion": "3.11"
+    }
+  ]
+}

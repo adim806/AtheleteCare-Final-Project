@@ -1,0 +1,55 @@
+{
+  "name": "AthleteCare — RAG Tool Smoke Test",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "athletecare-rag-test",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "rag-webhook-001",
+      "name": "RAG Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 300],
+      "webhookId": "athletecare-rag-test-001"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sources-steven-tee-functions.trycloudflare.com/query",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"description\": {{ JSON.stringify($json.body.description) }}\n}",
+        "options": {}
+      },
+      "id": "rag-http-001",
+      "name": "RAG Service — POST /query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [280, 300]
+    }
+  ],
+  "connections": {
+    "RAG Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "RAG Service — POST /query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

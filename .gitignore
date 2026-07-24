@@ -1,6 +1,6 @@
 # Monorepo – shared ignore rules for AthleteCare services
 
-# Root local env / venv (dev leftovers)
+# Root – no shared venv here (each service has its own)
 .env
 .venv/
 .venv311/
@@ -22,6 +22,9 @@ Guardrails-Service/.env
 **/__pycache__/
 **/*.py[cod]
 **/.pytest_cache/
+
+# Local tunnel binaries (download separately)
+tools/
 
 # IDE
 .vscode/
