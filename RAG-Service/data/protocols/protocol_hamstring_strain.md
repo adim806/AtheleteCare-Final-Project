@@ -1,6 +1,8 @@
 ---
+id: PROT-HAM-01
 title: Hamstring Strain Protocol
 type: protocol
+category: rtp
 body_region: hamstring
 date: 2024-01-15
 source: Club Medical Department

@@ -1,6 +1,8 @@
 ---
+id: CASE-2024-P07
 title: "Calf Tear Case – Player #7 (2024)"
 type: case
+category: case
 body_region: calf
 date: 2024-03-12
 source: Injury Database
@@ -33,6 +35,3 @@ Player returned to competitive match play at **56 days (8 weeks)**. Calf circumf
 
 ## Clinical Insight
 Conservative management with delayed stretching until week 3 and progressive eccentric loading from week 3 yielded a successful outcome. GPS monitoring showed reduced high-speed running in the first 2 matches post-return, which is consistent with club load-management policy.
-
-## Relevant Protocol Reference
-See Hamstring Strain Protocol for general soft-tissue loading principles applicable to calf rehabilitation.

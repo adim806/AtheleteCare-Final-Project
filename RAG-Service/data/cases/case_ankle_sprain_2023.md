@@ -1,6 +1,8 @@
 ---
+id: CASE-2023-P14
 title: "Ankle Sprain Case – Player #14 (2023)"
 type: case
+category: case
 body_region: ankle
 date: 2023-09-08
 source: Injury Database

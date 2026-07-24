@@ -1,26 +1,74 @@
-# AthleteCare RAG Service (Service 1)
+# The Club's Memory — Clinical RAG Service (Service 1)
 
-Local Retrieval-Augmented Generation service for sports medicine clinical insights. Searches club medical protocols and past injury cases using **hybrid search** (ChromaDB vector + BM25 keyword), **metadata filtering**, and **cross-encoder re-ranking**, then generates insights with a local Llama.cpp LLM.
+## Overview
 
-100% local AI — no OpenAI, no cloud vector DB, no Ollama server required.
+**The Club's Memory** is a local clinical knowledge service for a professional football club medical department. It acts as an intelligent memory layer over the club's official rehabilitation protocols and historical injury cases — allowing staff to ask natural-language questions (e.g. *"What is our hamstring protocol and similar past cases?"*) and receive grounded answers backed by internal documents.
+
+The service is built as **Retrieval-Augmented Generation (RAG)**: it does not rely on the LLM's general training alone. Instead, it **retrieves** relevant chunks from a vector database indexed from club data, **augments** a prompt with that context, and **generates** a short clinical insight via a local model. Retrieved sources are returned with IDs, relevance scores, and provenance so the medical team can verify citations.
+
+**Role in the AthleteCare system (Service 1):**
+
+| Responsibility | Description |
+|----------------|-------------|
+| **Knowledge store** | Index protocols (`PROT-*`), cases (`CASE-*`), and policies (`POL-*`) from Markdown under `data/` |
+| **Semantic search** | Find the most relevant document chunks for an injury description |
+| **Clinical insight** | Produce a concise, actionable summary grounded in retrieved context |
+| **Local & private** | All embeddings and LLM inference run on-premises — no OpenAI or cloud vector DB |
+
+**Typical workflow:** run `python -m app.ingest` once after data changes → start the API → `POST /query` with a free-text injury description.
+
+---
+
+## RAG Pipeline
+
+The system implements a **classic RAG architecture** in two phases: **offline indexing** (`ingest.py`) and **online query** (`main.py`). Together they cover load → chunk → embed → store → retrieve → filter → augment → generate.
+
+| RAG stage | Implemented | Brief description | Code location |
+|-----------|:-------------:|-------------------|---------------|
+| **Load** | ✅ | Read Markdown files (YAML frontmatter) from `protocols/`, `cases/`, `policies/`; optional TXT/PDF | `ingest.py` — `load_markdown_documents()`, `load_all_documents()` (Steps 1–2) |
+| **Chunk** | ✅ | Split `.md` by `##`/`###`; char split for long TXT/PDF | `ingest.py` — `chunk_documents()` (Step 3) |
+| **Embed** | ✅ | Convert each chunk to a vector using `all-MiniLM-L6-v2` | `ingest.py` — `build_vector_store()` (Step 4); same model in `main.py` at startup |
+| **Store** | ✅ | Persist vectors + metadata to local ChromaDB | `ingest.py` — `Chroma.from_documents()` → `chroma_db/` |
+| **Retrieve** | ✅ | Semantic similarity search for the user query (`k=8` candidates) | `main.py` — `similarity_search_with_relevance_scores()` (query Step 2) |
+| **Filter** | ✅ | Drop chunks below minimum relevance (35%); keep top 3 | `main.py` — `MIN_RELEVANCE_SCORE`, `MAX_RESULTS` (query Step 3) |
+| **Augment** | ✅ | Inject retrieved chunks into the LLM prompt as `{context}` | `main.py` — `context_blocks` → `prompt.format()` (query Steps 4–5) |
+| **Generate** | ✅ | Local GGUF model produces `insight` from context + query | `main.py` — `llm.invoke()` (query Step 5) |
+
+**Not yet implemented (quality enhancements, not core RAG structure):** metadata filters (`body_region`, `date`), deduplication by document ID, hybrid BM25 + vector search, and cross-encoder re-ranking. See [Roadmap](#roadmap-not-yet-implemented) below.
+
+```mermaid
+flowchart LR
+    subgraph offline ["Offline — ingest.py"]
+        L[Load] --> C[Chunk]
+        C --> E[Embed]
+        E --> V[(chroma_db/)]
+    end
+    subgraph online ["Online — main.py"]
+        Q[Query] --> R[Retrieve]
+        V --> R
+        R --> F[Filter]
+        F --> A[Augment]
+        A --> G[Generate]
+    end
+```
+
+For step-by-step execution order (Step 0, ingest 1–4, startup S1–S4, query 1–6), see [Chronological step reference](#chronological-step-reference) under System Flow.
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology | Role |
-|-------|-----------|------|
-| API | FastAPI + Uvicorn | HTTP endpoints (`/health`, `/query`) |
-| Orchestration | LangChain | Chains, retrievers, prompts |
-| Vector Store | ChromaDB (embedded, local disk) | Semantic similarity search |
-| Embeddings | HuggingFace `sentence-transformers/all-MiniLM-L6-v2` | Text → vectors |
-| Keyword Search | BM25 (`rank_bm25`) | Lexical / keyword retrieval |
-| Hybrid Fusion | LangChain `EnsembleRetriever` | Combines Chroma + BM25 (50/50) |
-| Re-ranking | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Re-scores candidates for precision |
-| LLM | Llama.cpp via `llama-cpp-python` | Local `.gguf` inference |
-| Document Parsing | PyYAML | YAML frontmatter from `.md` files |
-| Evaluation | RAGAS + pytest | Faithfulness & answer relevancy |
-| Config | python-dotenv | `.env` settings |
+|-------|------------|------|
+| API | FastAPI + Uvicorn | HTTP endpoints (`GET /`, `POST /query`) |
+| Orchestration | LangChain | Prompt templates, Chroma integration |
+| Vector store | ChromaDB (local disk) | Semantic similarity search |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` | Text → vectors |
+| LLM | Llama.cpp (`llama-cpp-python`) | Local `.gguf` inference |
+| Ingest | PyYAML + LangChain splitters | Frontmatter parsing, hybrid chunking |
+| Logging | Python `logging` | Ingest + query pipeline visibility |
+
+**Default model:** `models/qwen2.5-1.5b-instruct-q4_k_m.gguf`
 
 ---
 
@@ -29,145 +77,218 @@ Local Retrieval-Augmented Generation service for sports medicine clinical insigh
 ```
 RAG-Service/
 ├── app/
-│   ├── config.py           # Central settings (paths, retrieval, LLM)
-│   ├── document_loader.py  # YAML frontmatter parsing + shared doc loading
-│   ├── ingest.py           # Offline ChromaDB population
-│   ├── rag_engine.py       # Retrieval pipeline + Llama.cpp generation
-│   └── main.py             # FastAPI server
-├── data/                   # Medical protocols & case files (.md with YAML frontmatter)
-├── models/                 # Local .gguf LLM (not in git)
-├── chroma_db/              # Persistent vector store (generated at ingest, gitignored)
-├── tests/
-│   ├── test_document_loader.py    # Frontmatter parsing tests
-│   ├── test_retrieval_pipeline.py # Dedupe, merge, listing format tests
-│   ├── test_insight_validation.py # LLM output validation tests
-│   └── test_ragas_eval.py         # RAGAS evaluation (requires .gguf)
+│   ├── ingest.py          # Offline: load data → chunk → embed → chroma_db/
+│   ├── logging_config.py  # Shared logging; silences noisy third-party libraries
+│   └── main.py            # Online: FastAPI + retrieval + LLM insight
+├── data/
+│   ├── catalog.json       # Document index (admin reference — NOT ingested)
+│   ├── protocols/         # RTP protocols (type: protocol)
+│   ├── cases/             # Historical injury cases (type: case)
+│   └── policies/          # Load management & recovery (type: policy)
+├── models/                # Local .gguf file (gitignored)
+├── chroma_db/             # Vector store (generated by ingest, gitignored)
+├── tests/                 # Unit / integration tests
 ├── requirements.txt
 ├── Dockerfile
-├── .env.example
 └── README.md
 ```
 
 ---
 
-## System Data Flow
+## Data Model
 
-### Phase A — Offline Ingest (run once, or after updating `data/`)
+All sources share a unified metadata schema stored in ChromaDB:
 
-```mermaid
-flowchart TD
-    DataFiles["data/*.md, *.txt, *.pdf"] --> DocLoader["document_loader.py"]
-    DocLoader --> Frontmatter["parse_frontmatter - YAML to metadata"]
-    Frontmatter --> Splitter["RecursiveCharacterTextSplitter"]
-    Splitter --> Embedder["HuggingFaceEmbeddings all-MiniLM-L6-v2"]
-    Embedder --> ChromaPersist["Chroma.from_documents"]
-    ChromaPersist --> ChromaDB["chroma_db/ on disk"]
-```
+| Field | Description | Example |
+|-------|-------------|---------|
+| `id` | Stable document ID for citations | `PROT-HAM-01`, `CASE-2025-11`, `POL-GPS-01` |
+| `type` | Document category | `protocol`, `case`, `policy` |
+| `category` | Sub-category (optional) | `rtp`, `load_management`, `recovery` |
+| `body_region` | Anatomical region or `general` | `hamstring`, `calf`, `knee`, `general` |
+| `date` | ISO date string | `2025-11-15` |
+| `source` | Provenance label | `Club Medical Department`, `Performance Department` |
+| `linked_protocol_id` | Case → protocol link (optional) | `PROT-HAM-01` |
+| `days_to_return` | Case RTP duration in days (optional) | `22` |
+| `section` / `subsection` | Markdown heading (chunks from `.md`) | `Phase 2 – Sub-acute` |
 
-| Step | Tool | What happens |
-|------|------|--------------|
-| 1 | `document_loader.py` | Loads `.md` files; parses YAML frontmatter (`title`, `type`, `body_region`, `date`) into metadata; strips frontmatter from body |
-| 2 | `RecursiveCharacterTextSplitter` | Splits documents into ~800-char chunks with 120-char overlap |
-| 3 | `HuggingFaceEmbeddings` | Converts each chunk to a normalised vector |
-| 4 | `Chroma.from_documents` | Persists vectors + metadata to `chroma_db/` |
+### Catalog (`catalog.json`)
 
-**Command:**
-```bash
-python -m app.ingest
-```
+Human-readable index of all document IDs and file paths. **Not ingested** into Chroma — use it for admin reference or future UI tooling.
 
-> Re-run ingest whenever you add or change files in `data/`.
+### Markdown (`data/**/*.md`)
 
----
+All clinical content lives in Markdown with YAML frontmatter. Organized by folder:
 
-### Phase B — Online Query (every `POST /query`)
+| Folder | `type` | Section template (`##`) |
+|--------|--------|-------------------------|
+| `protocols/` | `protocol` | Classification, Phases, Return-to-Play Criteria, Club Benchmark |
+| `cases/` | `case` | Incident Summary, Diagnosis, Treatment Timeline, Outcome, Clinical Insight |
+| `policies/` | `policy` | One `##` per rule cluster (GPS thresholds, recovery rules, etc.) |
 
-```mermaid
-flowchart TD
-    Client["POST /query"] --> FastAPI["main.py"]
-    FastAPI --> RAGEngine["rag_engine.py"]
-
-    RAGEngine --> RegionDetect["Extract body_region from query"]
-    RegionDetect --> HybridFetch["Hybrid fetch - k=8 per retriever"]
-    HybridFetch --> ChromaDB["ChromaDB vector search"]
-    HybridFetch --> BM25["BM25Retriever keyword search"]
-    ChromaDB --> MetaFilter["Metadata filter by body_region - optional"]
-    BM25 --> MetaFilter
-    MetaFilter --> Dedupe["Dedupe by source file"]
-    Dedupe --> Rerank["CrossEncoder re-rank"]
-    Rerank --> Top3["Slice to top-3 FINAL_TOP_K"]
-    Top3 --> Listings["similar_listings"]
-    Top3 --> Prompt["LangChain PromptTemplate + context"]
-    Prompt --> LlamaCpp["Llama.cpp GGUF"]
-    LlamaCpp --> Validate["validate_insight + retry"]
-    Validate --> Response["JSON response"]
-```
-
-| Step | Tool | What happens |
-|------|------|--------------|
-| 1 | FastAPI (`main.py`) | Receives `{"description": "..."}`, validates input |
-| 2 | Region detection | Matches query keywords against known `body_region` values from metadata |
-| 3 | ChromaDB | Vector similarity search (`k=8`); filtered by `body_region` when detected |
-| 4 | BM25 | Keyword search (`k=8`); post-filtered by `body_region` when detected |
-| 5 | Top-up guard | If filtered results < 3, supplements with unfiltered hybrid results |
-| 6 | Dedupe | Keeps one chunk per source file (distinct cases/protocols) |
-| 7 | CrossEncoder | Re-scores `(query, chunk)` pairs; reorders by relevance |
-| 8 | Top-3 cap | Returns exactly `FINAL_TOP_K=3` documents for listings + LLM context |
-| 9 | PromptTemplate | Injects top-3 context + query; instructs LLM to cite documents |
-| 10 | LlamaCpp | Generates clinical insight JSON locally |
-| 11 | `validate_insight` | Rejects placeholders, too-short text; retries once on failure |
-| 12 | Response | `{"similar_listings": [...], "insight": "..."}` |
-
----
-
-## Key Features
-
-### Hybrid Search (ChromaDB + BM25)
-Combines semantic vector search with keyword matching via `EnsembleRetriever` (50% / 50% weights). Catches both meaning-based and exact-term matches (e.g. "ACL", "gastrocnemius").
-
-### YAML Frontmatter Metadata
-Markdown files in `data/` use YAML frontmatter for structured metadata:
+Example case frontmatter:
 
 ```yaml
 ---
-title: "Calf Tear Case – Player #7 (2024)"
+id: CASE-2025-11
+title: "Hamstring Strain Case – Winger (2025)"
 type: case
-body_region: calf
-date: 2024-03-12
+category: case
+body_region: hamstring
+date: 2025-11-15
 source: Injury Database
+linked_protocol_id: PROT-HAM-01
+days_to_return: 22
 ---
 ```
 
-Parsed by `document_loader.py` and stored in ChromaDB metadata. Enables clean listing titles like:
+> Quote YAML titles containing `#` (e.g. `"Player #7"`) — bare `#` starts a YAML comment.
+
+---
+
+## System Flow
+
+### Chronological step reference
+
+All pipelines share **Step 0** (logging). Ingest runs **Steps 1–4** offline; the API runs **Steps S1–S4** at startup, then **Steps 1–6** on each `POST /query`.
+
+| Step | When | File | What happens |
+|------|------|------|--------------|
+| **0** | Before everything | `logging_config.py` | Configure logging; silence third-party libraries |
+| **1** | Ingest | `ingest.py` → `load_markdown_documents()` | Load `*.md` from protocols/, cases/, policies/ |
+| **2** | Ingest | `ingest.py` → `load_all_documents()` | Load optional TXT/PDF files |
+| **3** | Ingest | `ingest.py` → `chunk_documents()` | Header-based chunking (`##` / `###`) |
+| **4** | Ingest | `ingest.py` → `build_vector_store()` | Clear `chroma_db/`, embed, persist |
+| **S1** | Server startup | `main.py` | FastAPI app + paths + retrieval constants |
+| **S2** | Server startup | `main.py` | Load embeddings + connect to `chroma_db/` |
+| **S3** | Server startup | `main.py` | Load local GGUF model (LlamaCpp) |
+| **S4** | Server startup | `main.py` | Define prompt template for insight generation |
+| **1** | Each query | `main.py` → `query_rag()` | Validate input; check Chroma + LLM available |
+| **2** | Each query | `main.py` → `query_rag()` | Vector search with relevance scores (`k=8`) |
+| **3** | Each query | `main.py` → `query_rag()` | Filter `>= 35%` relevance; keep top 3 |
+| **4** | Each query | `main.py` → `query_rag()` | Build `similar_listings` + LLM context blocks |
+| **5** | Each query | `main.py` → `query_rag()` | Invoke local LLM → generate `insight` |
+| **6** | Each query | `main.py` → `query_rag()` | Return JSON `{ similar_listings, insight }` |
+
+---
+
+### Phase A — Offline ingest (Steps 0–4)
+
+```mermaid
+flowchart TD
+    S0["Step 0: logging_config"] --> S1["Step 1: Markdown protocols/cases/policies"]
+    S1 --> S2["Step 2: TXT/PDF optional"]
+    S2 --> S3["Step 3: chunk_documents"]
+    S3 --> MDsplit["MarkdownHeaderTextSplitter ## / ###"]
+    MDsplit --> S4["Step 4: clear chroma_db + embed"]
 ```
-[1] Calf Tear Case – Player #7 (2024) [case/calf, 2024-03-12]: ...
+
+| Step | What happens |
+|------|----------------|
+| 0 | Configure logging (`logging_config.py`) |
+| 1 | Load `.md` files; parse YAML frontmatter; body only in `page_content` |
+| 2 | Load optional `.txt` / `.pdf` files (if present) |
+| 3 | **Header chunking:** `.md` → split by `##` / `###` |
+| 4 | Clear existing `chroma_db/`, embed all chunks, persist |
+
+**Command:**
+
+```bash
+cd RAG-Service
+python -m app.ingest
 ```
 
-> Quote titles containing `#` in YAML (e.g. `"Player #7"`) — `#` starts a YAML comment otherwise.
+Re-run whenever you change files under `data/`.
 
-### Metadata Filtering
-When the query mentions a known body region (`calf`, `ankle`, `knee`, `hamstring`), ChromaDB and BM25 are filtered to that region. A safety top-up ensures at least 3 results when the filtered set is too small.
+---
 
-### Cross-Encoder Re-ranking
-After hybrid retrieval, `cross-encoder/ms-marco-MiniLM-L-6-v2` re-scores each `(query, document)` pair for higher precision before the top-3 cut.
+### Phase B — Online query (Steps S1–S4 at startup, Steps 1–6 per request)
 
-### Insight Validation
-Generated insights are validated before returning:
-- Minimum length (50 chars)
-- No placeholder text (`<your ... here>`)
-- No prompt-echo artifacts
-- Automatic retry with a stricter prompt on failure
-- Safe fallback message if all attempts fail
+```mermaid
+flowchart TD
+    subgraph startup ["Server startup (S1–S4)"]
+        S1["S1: FastAPI + paths"]
+        S2["S2: Chroma + embeddings"]
+        S3["S3: GGUF LLM"]
+        S4["S4: Prompt template"]
+    end
+    subgraph query ["POST /query (Steps 1–6)"]
+        Q1["Step 1: Validate"]
+        Q2["Step 2: Vector search k=8"]
+        Q3["Step 3: Filter >= 35%"]
+        Q4["Step 4: Build listings + context"]
+        Q5["Step 5: LLM insight"]
+        Q6["Step 6: JSON response"]
+    end
+    startup --> query
+    Q1 --> Q2 --> Q3 --> Q4 --> Q5 --> Q6
+```
+
+| Step | When | What happens |
+|------|------|----------------|
+| S1–S4 | Server startup | Load FastAPI, Chroma, LLM, prompt (once) |
+| 1 | Each query | Receive and validate `{"description": "..."}`; check Chroma + model |
+| 2 | Each query | Vector search with normalized relevance scores (0–1), `k=8` |
+| 3 | Each query | Drop chunks below `MIN_RELEVANCE_SCORE` (35%); cap at 3 results |
+| 4 | Each query | Build structured `similar_listings` + context blocks for LLM |
+| 5 | Each query | Generate `insight` via local LLM |
+| 6 | Each query | Return `{ similar_listings, insight }` |
+
+---
+
+## API
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Service status (`ready` / `degraded`), paths check |
+| POST | `/query` | Retrieve similar documents + clinical insight |
+
+Interactive docs: `http://localhost:8000/docs`
+
+### Request
+
+```json
+{
+  "description": "A player sustained a sharp pain in his back thigh during sprint training. Bring me the official club protocol for hamstring strain and any past cases from last year."
+}
+```
+
+### Response
+
+```json
+{
+  "similar_listings": [
+    {
+      "id": "PROT-HAM-01",
+      "type": "protocol",
+      "relevance_score": "71.2%",
+      "source": "Club Medical Department",
+      "content": "Title: Official Club Protocol: Grade 1-2 Hamstring Strain Rehabilitation\n\nPhase 1 Acute..."
+    },
+    {
+      "id": "CASE-2025-11",
+      "type": "case",
+      "relevance_score": "67.4%",
+      "source": "Injury Database",
+      "content": "Title: Historical Case: Winger - Grade 2 Biceps Femoris Strain\n\nOccurred November 2025..."
+    }
+  ],
+  "insight": "[Based on ID: PROT-HAM-01] ..."
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `relevance_score` | Vector similarity (0–100%), not clinical confidence |
+| `source` | Department or database label from metadata |
+| `content` | Retrieved chunk text sent to the LLM as context |
 
 ---
 
 ## Setup
 
-### 1. Create a virtual environment
-
-> **Note:** Python 3.11 is recommended for best wheel compatibility with `llama-cpp-python` and `chromadb`. Python 3.13 may work but can require building from source.
->
-> **Windows users:** If `pip install` fails with "filename or extension is too long", enable [Long Path support](https://pip.pypa.io/warnings/enable-long-paths) or use a shorter project path (e.g. `C:\dev\rag`).
+### 1. Virtual environment
 
 ```bash
 cd RAG-Service
@@ -180,6 +301,8 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
+Python 3.11+ recommended. On Windows, enable [long path support](https://pip.pypa.io/warnings/enable-long-paths) if installs fail.
+
 ### 2. Install dependencies
 
 ```bash
@@ -188,117 +311,129 @@ pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-c
 pip install -r requirements.txt
 ```
 
-### 3. Add the local LLM model
+### 3. Add the GGUF model
 
-Download a quantised GGUF (e.g. Llama 3 8B Instruct Q4_K_M, ~4.6 GB) and place it in `models/`:
+Place the model in `models/`:
 
 ```
-models/llama-3-8b-instruct.gguf
+models/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
 
-See [models/README.md](models/README.md) for details.
+Update `MODEL_PATH` in `app/main.py` if you use a different filename.
 
-### 4. Configure environment
+### 4. Ingest documents
 
 ```bash
-copy .env.example .env   # Windows
-# cp .env.example .env   # macOS / Linux
-```
-
-Key settings in `.env`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLAMA_MODEL_PATH` | `models/llama-3-8b-instruct.gguf` | Path to GGUF model |
-| `LLAMA_CHAT_FORMAT` | `llama-3` | Chat template for Llama 3 Instruct |
-| `LLAMA_N_GPU_LAYERS` | `0` | GPU offloading (set `35` for full GPU) |
-| `RETRIEVER_FETCH_K` | `8` | Raw candidates per sub-retriever |
-| `FINAL_TOP_K` | `3` | Final documents returned |
-| `ENABLE_METADATA_FILTERING` | `true` | Filter by `body_region` when detected |
-| `ENABLE_RERANKING` | `true` | Cross-encoder re-ranking |
-| `INSIGHT_MIN_LENGTH` | `50` | Minimum insight character length |
-| `LLM_GENERATION_MAX_RETRIES` | `1` | Retry count on validation failure |
-
-### 5. Ingest documents into ChromaDB
-
-```bash
+# Ingest auto-clears chroma_db/ before each run
 python -m app.ingest
 ```
 
-Expected output:
+Expected log (INFO level):
+
 ```
-[ingest] Loading documents from: .../data
-  Loaded 4 document(s) total
-[ingest] Total raw documents loaded: 4
-[ingest] Splitting documents …
-  Split into 11 chunk(s)
-[ingest] SUCCESS – 11 chunks persisted to '.../chroma_db'
+=== RAG Ingestion Started ===
+Cleared existing vector store at '.../chroma_db'
+Step 1/4 — Loading markdown files (8 found)
+Step 2/4 — Loading optional TXT/PDF files
+Step 3/4 — Chunking ...
+Chunking summary — 42 total chunk(s) from 8 source document(s)
+Step 4/4 — Generating embeddings ...
+=== Ingestion SUCCESS — N chunks persisted to '.../chroma_db' ===
 ```
 
----
-
-## Running the Service
+### 5. Run the service
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-> First query after startup loads the LLM (~4.6 GB) and may take 1–3 minutes on CPU. Subsequent queries are faster.
+First query loads the LLM into memory; subsequent queries are faster.
 
-### API Endpoints
+---
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Readiness check (`chroma_db_exists`, `model_exists`) |
-| POST | `/query` | Retrieve similar cases + generate clinical insight |
+## Logging & Debug
 
-Interactive docs: `http://localhost:8000/docs`
+Set log verbosity with the environment variable **`RAG_LOG_LEVEL`**:
 
-### Example Request
+| Level | Ingest | Query (`POST /query`) |
+|-------|--------|------------------------|
+| `INFO` (default) | Steps, document counts, chunk summary by ID | Candidates, relevance filter, LLM char counts |
+| `DEBUG` | Frontmatter keys, chunk previews, section labels | Full context preview, chunk text previews |
+
+Third-party libraries (`httpx`, `sentence_transformers`, `huggingface_hub`, etc.) are silenced via `app/logging_config.py` — only `rag.ingest` / `rag.query` messages appear at INFO.
+
+**Examples:**
 
 ```bash
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d "{\"description\": \"Player reports sharp pain in posterior calf during sprinting, unable to continue training.\"}"
+# Verbose ingest
+set RAG_LOG_LEVEL=DEBUG
+python -m app.ingest
+
+# Verbose API (Windows cmd)
+set RAG_LOG_LEVEL=DEBUG
+uvicorn app.main:app --reload --port 8000
 ```
 
-PowerShell one-liner:
 ```powershell
-curl.exe -X POST http://localhost:8000/query -H "Content-Type: application/json" -d "{\"description\": \"Player reports sharp pain in posterior calf during sprinting, unable to continue training.\"}"
+# PowerShell
+$env:RAG_LOG_LEVEL = "DEBUG"
+python -m app.ingest
 ```
 
-### Example Response
+Log format:
 
-```json
-{
-  "similar_listings": [
-    "[1] Calf Tear Case – Player #7 (2024) [case/calf, 2024-03-12]: Player reported sudden sharp pain in the posterior lower leg during a sprint drill...",
-    "[2] Ankle Sprain Case – Player #14 (2023) [case/ankle, 2023-09-08]: Player sustained a lateral ankle sprain during a competitive match...",
-    "[3] Hamstring Strain Protocol [protocol/hamstring, 2024-01-15]: Progressive eccentric loading and return-to-play criteria..."
-  ],
-  "insight": "Based on Document 1 (Calf Tear Case P07), sudden posterior calf pain during sprinting is consistent with gastrocnemius tear. Conservative management with delayed stretching from week 3 is recommended; documented return-to-play was 8 weeks."
-}
+```
+HH:MM:SS | INFO    | rag.ingest | Step 1/4 — Loading markdown files (8 found)
+HH:MM:SS | INFO    | rag.query  | Retrieval returned 8 candidate(s) (k=8)
 ```
 
 ---
 
-## Running Tests
+## Configuration (code constants)
+
+| Constant | File | Default | Description |
+|----------|------|---------|-------------|
+| `RETRIEVAL_K` | `main.py` | `8` | Candidates fetched from Chroma |
+| `MAX_RESULTS` | `main.py` | `3` | Max items in `similar_listings` |
+| `MIN_RELEVANCE_SCORE` | `main.py` | `0.35` | Minimum normalized relevance |
+| `MD_HEADERS_TO_SPLIT` | `ingest.py` | `##`, `###` | Markdown section boundaries |
+| `SINGLE_DOC_MAX_CHARS` | `ingest.py` | `800` | Short non-MD docs kept as one chunk if shorter |
+
+---
+
+## Adding New Documents
+
+1. Create a new `.md` file in the correct folder under `data/`:
+   - `protocols/` — RTP protocols (`type: protocol`)
+   - `cases/` — historical cases (`type: case`)
+   - `policies/` — load/recovery rules (`type: policy`)
+2. Include required frontmatter: `id`, `type`, `body_region`, `date`, `source`.
+3. Use `##` section headers so ingest splits into searchable chunks.
+4. Add an entry to `catalog.json` for admin reference.
+5. Run `python -m app.ingest` (auto-clears `chroma_db/`) and restart the API.
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `Vector Database not found` | Run `python -m app.ingest` |
+| `model_exists: false` | Place `.gguf` in `models/` |
+| SSL / HuggingFace error on ingest | Cache embeddings locally or fix network; retry ingest |
+| Wrong injury type in `insight` | Small model + mixed context; improve data, raise `MIN_RELEVANCE_SCORE`, or use a larger GGUF |
+| `id: N/A` in responses | Re-ingest after metadata changes; ensure frontmatter includes `id` |
+| Tests import `document_loader` | Legacy tests — loader logic now lives in `ingest.py` |
+
+---
+
+## Tests
 
 ```bash
-# Frontmatter parsing (fast, no model)
-pytest tests/test_document_loader.py -v
-
-# Retrieval pipeline helpers (fast, no model)
-pytest tests/test_retrieval_pipeline.py -v
-
-# Insight validation rules (fast, no model)
-pytest tests/test_insight_validation.py -v
-
-# RAGAS evaluation (requires local .gguf model, slow)
-pytest tests/test_ragas_eval.py::test_ragas_faithfulness_and_answer_relevancy -v -s
+pytest tests/ -v
 ```
 
-The RAGAS test is automatically **skipped** if the GGUF model is not present.
+Some tests target modules from an earlier architecture and may need updates. Ingest and query logging do not require a GGUF model.
 
 ---
 
@@ -309,71 +444,15 @@ docker build -t athletecare-rag .
 docker run -p 8000:8000 \
   -v $(pwd)/models:/app/models \
   -v $(pwd)/chroma_db:/app/chroma_db \
+  -e RAG_LOG_LEVEL=INFO \
   athletecare-rag
 ```
 
 ---
 
-## Adding New Documents
+## Roadmap (not yet implemented)
 
-1. Add `.md`, `.txt`, or `.pdf` files to `data/`.
-2. For `.md` files, include YAML frontmatter with at least `title`, `type`, and `body_region`:
-
-   ```yaml
-   ---
-   title: "Groin Strain Case – Player #22 (2024)"
-   type: case
-   body_region: groin
-   date: 2024-06-01
-   source: Injury Database
-   ---
-   ```
-
-3. Re-run ingest: `python -m app.ingest`
-4. Restart the server (or rely on `--reload`).
-
-> The project spec recommends at least **20 synthetic documents** for meaningful retrieval coverage.
-
----
-
-## Architecture Overview
-
-```mermaid
-flowchart TB
-    subgraph offline ["Offline - Ingest"]
-        Data["data/*.md"] --> Loader["document_loader.py"]
-        Loader --> Split["TextSplitter"]
-        Split --> HF1["HuggingFace Embeddings"]
-        HF1 --> ChromaStore["chroma_db/"]
-    end
-
-    subgraph online ["Online - Query"]
-        API["FastAPI POST /query"] --> Engine["RAGEngine"]
-        Engine --> Filter["Metadata Filter"]
-        Filter --> Hybrid["EnsembleRetriever"]
-        Hybrid --> ChromaSearch["ChromaDB"]
-        Hybrid --> BM25Search["BM25"]
-        ChromaSearch --> Dedupe["Dedupe + Rerank"]
-        BM25Search --> Dedupe
-        Dedupe --> Top3["Top-3"]
-        Top3 --> LLM["Llama.cpp GGUF"]
-        LLM --> Valid["validate_insight"]
-        Valid --> JSON["similar_listings + insight"]
-    end
-
-    ChromaStore --> ChromaSearch
-    Data --> BM25Search
-```
-
----
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `Vector store not found` on `/query` | Run `python -m app.ingest` |
-| `model_exists: false` on `/health` | Place `.gguf` file in `models/` |
-| SSL error during ingest | Disable firewall temporarily, or set `HF_HUB_OFFLINE=1` if embeddings are cached |
-| `pip install llama-cpp-python` fails on Windows | Use prebuilt wheel: `pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu` |
-| Slow first query | Expected on CPU; subsequent queries are faster. Use GPU via `LLAMA_N_GPU_LAYERS=35` |
-| Insight mentions wrong injury type | Known limitation with small dataset (4 docs) and 8B CPU model; add more documents and tune prompt |
+- Chroma metadata `filter` by `body_region` on query
+- Temporal filter for "past cases from last year" using `date`
+- Prompt/context cleanup for smaller models
+- Hybrid BM25 + cross-encoder re-ranking (see project spec)
