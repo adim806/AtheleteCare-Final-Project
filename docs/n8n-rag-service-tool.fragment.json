@@ -5,7 +5,7 @@
       "parameters": {
         "toolDescription": "Search club medical cases and protocols for historical precedents, rehab timelines, and evidence-based clinical insight. Call this for every injury description before drafting the clinical brief. Input: full injury description text.",
         "method": "POST",
-        "url": "https://sources-steven-tee-functions.trycloudflare.com/query",
+        "url": "https://REPLACE_WITH_RAG_PUBLIC_HOST/query",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"description\": {{ JSON.stringify($fromAI('description', 'Full injury description or clinical query text')) }}\n}",
@@ -27,7 +27,7 @@
   },
   "meta": {
     "templateCredsSetupCompleted": true,
-    "notes": "Import this, replace REPLACE_WITH_RAG_NGROK with your ngrok HTTPS host for port 8001, then connect the tool output to the AI Agent ai_tool input."
+    "notes": "Import this, replace REPLACE_WITH_RAG_PUBLIC_HOST with your ngrok/cloudflared HTTPS host for port 8001, then connect the tool output to the AI Agent ai_tool input."
   },
   "tags": []
 }

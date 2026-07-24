@@ -1,31 +1,60 @@
 # Monorepo – shared ignore rules for AthleteCare services
 
-# Root – no shared venv here (each service has its own)
+# Secrets (keep *.example tracked)
 .env
+.env.*
+!.env.example
+!**/.env.example
+
+# Virtual environments (any service)
 .venv/
 .venv311/
+**/.venv/
+**/.venv311/
+**/venv/
 
 # RAG Service – local LLM & vector store
 RAG-Service/models/*.gguf
 RAG-Service/models/*.bin
 RAG-Service/models/*.safetensors
 RAG-Service/chroma_db/
-RAG-Service/.venv/
-RAG-Service/.env
+**/chroma_db/
 
-# Guardrails Service
-Guardrails-Service/.venv/
-Guardrails-Service/.venv311/
-Guardrails-Service/.env
+# Model checkpoints (Image Analyser / PyTorch)
+**/*.pth
+**/*.pt
+
+# HuggingFace / local model caches inside the repo
+**/.cache/
 
 # Python
 **/__pycache__/
 **/*.py[cod]
+**/*$py.class
+**/*.egg-info/
+**/.eggs/
+**/dist/
+**/build/
 **/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+.coverage
+htmlcov/
+
+# Logs / local tunnel state
+*.log
+**/.ngrok/
 
 # Local tunnel binaries (download separately)
 tools/
 
-# IDE
+# Local DX / machine-specific Cursor helpers
+scripts/open-in-cursor.ps1
+CURSOR.md
+*.code-workspace
+
+# IDE / OS
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db

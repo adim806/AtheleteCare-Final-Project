@@ -4,30 +4,33 @@ This connects the AthleteCare **RAG-Service** (`POST /query`) as the `rag_servic
 
 ## Prerequisites
 
-1. RAG running locally on **port 8001** (Guardrails stays on 8000):
+1. RAG running locally on **port 8001** (Guardrails stays on 8000). From repo root:
 
 ```powershell
-cd C:\Users\Gal\Desktop\AthleteCare-Services\Guardrail\RAG-Service
+.\scripts\start-rag.ps1
+```
+
+Or manually:
+
+```powershell
+cd RAG-Service
 .\.venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 2. Expose it for n8n.cloud with a **second** public tunnel (do **not** reuse the Guardrails ngrok domain on 8000).
 
-If your free ngrok account already has one online endpoint, use Cloudflare Tunnel instead:
-
-```powershell
-# From repo root
-.\tools\cloudflared.exe tunnel --url http://127.0.0.1:8001 --no-autoupdate
-```
-
-Copy the printed HTTPS URL, e.g. `https://<random>.trycloudflare.com`.
-
-Alternatively (second ngrok / paid plan):
-
 ```powershell
 ngrok http 8001
 ```
+
+If your free ngrok account already has one online endpoint, use Cloudflare Tunnel instead (install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/) so `cloudflared` is on your PATH):
+
+```powershell
+cloudflared tunnel --url http://127.0.0.1:8001 --no-autoupdate
+```
+
+Copy the printed HTTPS URL, e.g. `https://<random>.trycloudflare.com` or your ngrok host.
 
 3. Confirm health:
 
@@ -37,10 +40,7 @@ GET https://<your-rag-public-host>/health
 
 Expect `chroma_db_exists: true` and `model_exists: true`.
 
-**Current local session (ephemeral — restart regenerates Cloudflare URL):**
-
-- RAG public base: `https://sources-steven-tee-functions.trycloudflare.com`
-- Tool URL: `https://sources-steven-tee-functions.trycloudflare.com/query`
+Tunnel URLs are ephemeral — restart regenerates them. Update the n8n tool URL each time (or use a reserved ngrok domain).
 
 ---
 
@@ -53,7 +53,7 @@ Add / configure an **HTTP Request Tool** attached to the **AI Agent** node:
 | Tool Name | `rag_service` |
 | Description | Search club medical cases and protocols. Use for historical precedents, rehab protocols, and evidence-based clinical insight. Input: injury description text. |
 | Method | `POST` |
-| URL | `https://<rag-subdomain>.ngrok-free.dev/query` |
+| URL | `https://<your-rag-public-host>/query` |
 | Send Body | On |
 | Body Content Type | JSON |
 | Body | see below |

@@ -18,7 +18,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://sources-steven-tee-functions.trycloudflare.com/query",
+        "url": "https://REPLACE_WITH_RAG_PUBLIC_HOST/query",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"description\": {{ JSON.stringify($json.body.description) }}\n}",

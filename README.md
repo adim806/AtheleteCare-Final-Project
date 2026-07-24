@@ -1,4 +1,8 @@
-# AthleteCare — Monorepo
+# AthleteCare Final Project
+
+Monorepo for the course final project ([GitHub](https://github.com/adim806/AtheleteCare-Final-Project)).
+
+Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/` and `RAG-Service/`).
 
 Two independent Python services, each with **its own virtual environment**:
 
