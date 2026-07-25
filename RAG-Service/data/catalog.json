@@ -12,6 +12,12 @@
     "file": "protocols/protocol_acl_rehab.md"
   },
   {
+    "id": "PROT-HIP-01",
+    "type": "protocol",
+    "category": "rtp",
+    "file": "protocols/protocol_hip_proximal_femur.md"
+  },
+  {
     "id": "CASE-2023-P14",
     "type": "case",
     "category": "case",
@@ -34,6 +40,18 @@
     "type": "case",
     "category": "case",
     "file": "cases/case_hamstring_midfielder_2026.md"
+  },
+  {
+    "id": "CASE-2024-H12",
+    "type": "case",
+    "category": "case",
+    "file": "cases/case_hip_fracture_defender_2024.md"
+  },
+  {
+    "id": "CASE-2025-H03",
+    "type": "case",
+    "category": "case",
+    "file": "cases/case_hip_contusion_midfielder_2025.md"
   },
   {
     "id": "POL-GPS-01",
