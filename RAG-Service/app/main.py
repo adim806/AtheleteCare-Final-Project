@@ -44,6 +44,7 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 vector_store = None
 if CHROMA_DIR.exists():
     vector_store = Chroma(
+        collection_name="athletecare_medical",
         persist_directory=str(CHROMA_DIR),
         embedding_function=embeddings
     )

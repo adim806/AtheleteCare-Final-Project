@@ -1,0 +1,22 @@
+# Virtual env
+.venv/
+.venv311/
+
+# Secrets / local
+.env
+*.log
+
+# Checkpoints (v1 training)
+*.pth
+*.pt
+checkpoints/
+
+# Local training data (DICOM/PNG — do not commit)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

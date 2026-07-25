@@ -2,14 +2,15 @@
 
 Monorepo for the course final project ([GitHub](https://github.com/adim806/AtheleteCare-Final-Project)).
 
-Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/` and `RAG-Service/`).
+Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/`, `RAG-Service/`, and `Image-Analyser-Service/`).
 
-Two independent Python services, each with **its own virtual environment**:
+Independent Python services, each with **its own virtual environment**:
 
 | Service | Folder | Venv | Port |
 |---------|--------|------|------|
 | Guardrails | `Guardrails-Service/` | `.venv311` | 8000 |
 | RAG | `RAG-Service/` | `.venv` | 8001 |
+| Image Analyser | `Image-Analyser-Service/` | `.venv` | 8002 |
 
 Do **not** use a shared root venv — dependencies differ and are installed per service.
 
@@ -79,4 +80,5 @@ Or use the helper scripts from repo root:
 ```powershell
 curl.exe http://127.0.0.1:8000/health
 curl.exe http://127.0.0.1:8001/health
+curl.exe http://127.0.0.1:8002/health
 ```

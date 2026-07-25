@@ -12,7 +12,7 @@ player_id: P07
 # Case Report: Gastrocnemius Tear – Player #7
 
 ## Incident Summary
-Player reported sudden sharp pain in the posterior lower leg during a sprint drill in training. Audible pop reported. Unable to continue session.
+Player reported sudden sharp pain in the posterior lower leg during a sprint drill in training. Audible pop reported.
 
 ## Initial Diagnosis
 - **Injury**: Medial gastrocnemius tear (tennis leg), Grade II.

@@ -431,6 +431,7 @@ def build_vector_store() -> None:
         Chroma.from_documents(
             documents=chunks,
             embedding=embeddings,
+            collection_name="athletecare_medical",
             persist_directory=str(CHROMA_DIR),
         )
         logger.info("=== Ingestion SUCCESS — %d chunks persisted to '%s' ===", len(chunks), CHROMA_DIR)
