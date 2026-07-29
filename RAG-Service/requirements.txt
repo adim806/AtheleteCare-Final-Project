@@ -1,29 +1,28 @@
+# RAG Service — runtime deps (Docker / EC2)
+# Install llama-cpp-python from the CPU wheel index when building Linux images:
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+#   pip install -r requirements.txt
+
 # Web framework
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 
-# LangChain ecosystem
-langchain>=0.3.0
+# LangChain stack (imports match app/main.py + app/ingest.py)
+langchain-core>=0.3.0
 langchain-community>=0.3.0
 langchain-huggingface>=0.1.0
 langchain-text-splitters>=0.3.0
-langchain-classic>=0.1.0
-langchain-core>=0.3.0
+langchain-chroma>=0.1.0
 
 # Vector store & embeddings
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
 
-# Local LLM inference
+# Local LLM inference (GGUF via LlamaCpp)
 llama-cpp-python>=0.2.90
 
-# Document loaders
+# Document loaders / config
 pypdf>=4.0.0
 pyyaml>=6.0
-
-# Evaluation
-ragas>=0.2.0
-datasets>=2.19.0
-pytest>=8.0.0

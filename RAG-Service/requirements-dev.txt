@@ -1,0 +1,4 @@
+# RAG Service — optional local eval / tests (not needed in production Docker image)
+pytest>=8.0.0
+ragas>=0.2.0
+datasets>=2.19.0

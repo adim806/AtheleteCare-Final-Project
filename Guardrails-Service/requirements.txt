@@ -1,5 +1,7 @@
-fastapi
-uvicorn
-nemoguardrails
-openai
-python-dotenv
+# Guardrails Service — runtime deps (Docker / EC2)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+nemoguardrails>=0.9.0
+openai>=1.40.0

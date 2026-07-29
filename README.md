@@ -2,18 +2,19 @@
 
 Monorepo for the course final project ([GitHub](https://github.com/adim806/AtheleteCare-Final-Project)).
 
-Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/`, `RAG-Service/`, `Image-Analyser-Service/`, and `LangGraph-Service/`).
+Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/`, `RAG-Service/`, `Image-Analyser-Service/`, `LangGraph-Service/`, and `WebUI-Service/`).
 
-Independent Python services, each with **its own virtual environment**:
+Independent services (Python services use **their own** virtual environments; WebUI uses npm):
 
-| Service | Folder | Venv | Port |
-|---------|--------|------|------|
+| Service | Folder | Runtime | Port |
+|---------|--------|---------|------|
 | Guardrails | `Guardrails-Service/` | `.venv311` | 8000 |
 | RAG | `RAG-Service/` | `.venv` | 8001 |
 | Image Analyser | `Image-Analyser-Service/` | `.venv` | 8002 |
 | LangGraph Agent | `LangGraph-Service/` | `.venv` | 8003 |
+| WebUI (React) | `WebUI-Service/` | `npm` | 8004 |
 
-Do **not** use a shared root venv — dependencies differ and are installed per service.
+Do **not** use a shared root venv for Python services — dependencies differ and are installed per service.
 
 ---
 
@@ -47,6 +48,18 @@ python -m app.ingest
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
+### WebUI
+
+```powershell
+cd WebUI-Service
+npm install
+copy .env.example .env
+# Set N8N_WEBHOOK_URL; ensure Ollama is running (ollama pull llama3)
+npm run dev
+```
+
+See [WebUI-Service/README.md](WebUI-Service/README.md).
+
 ---
 
 ## Run both (two terminals)
@@ -74,9 +87,14 @@ Or use the helper scripts from repo root:
 .\scripts\start-rag.ps1
 .\scripts\start-image-analyser.ps1
 .\scripts\start-langgraph.ps1
+.\scripts\start-webui.ps1
 ```
 
 ---
+
+## Prompt engineering log (assignment §6)
+
+See [`docs/Prompt Engineering Log/INDEX.md`](docs/Prompt%20Engineering%20Log/INDEX.md) — five graded surfaces + LangGraph tool-description log.
 
 ## Health checks
 
@@ -85,4 +103,6 @@ curl.exe http://127.0.0.1:8000/health
 curl.exe http://127.0.0.1:8001/health
 curl.exe http://127.0.0.1:8002/health
 curl.exe http://127.0.0.1:8003/health
+# WebUI (open in browser)
+start http://127.0.0.1:8004
 ```

@@ -1,18 +1,19 @@
-# Image Analyser Service (assignment Service 2) — API + dual-head training
+# Image Analyser Service — runtime + training deps (Docker / EC2)
+# Prefer CPU Torch wheels in Docker (smaller, no CUDA required):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
 
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.0.0
+python-dotenv>=1.0.0
 httpx>=0.27.0
 pillow>=10.0.0
 
-# CPU wheels are fine for local use. Install torch/torchvision from the
-# official index if the default PyPI wheel is wrong for your platform:
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 torch>=2.2.0
 torchvision>=0.17.0
 
-# Dataset prep / training
+# Dataset prep / training (scripts/)
 pydicom>=2.4.0
 numpy>=1.26.0
 scikit-learn>=1.3.0

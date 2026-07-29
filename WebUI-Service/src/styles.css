@@ -1,0 +1,399 @@
+:root {
+  --pitch-deep: #0b2e1f;
+  --pitch-mid: #14532d;
+  --pitch-light: #1a6b3c;
+  --mint: #a7f3d0;
+  --fog: #e8f0eb;
+  --ink: #0f1a14;
+  --muted: #5a6b60;
+  --surface: rgba(255, 255, 255, 0.92);
+  --danger: #9b1c1c;
+  --warn: #92400e;
+  --ok: #166534;
+  --radius: 12px;
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-ui: "Outfit", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(167, 243, 208, 0.35), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(20, 83, 45, 0.45), transparent 50%),
+    linear-gradient(165deg, #071a12 0%, #0b2e1f 42%, #123528 100%);
+  background-attachment: fixed;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.app {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.hero {
+  color: #f4faf6;
+  padding: 1.5rem 0 2rem;
+  animation: rise 0.7s ease-out both;
+}
+
+.hero-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.6rem, 7vw, 4rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0 0 0.75rem;
+}
+
+.hero-tag {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(232, 240, 235, 0.88);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.75rem 0 1.25rem;
+  animation: rise 0.8s ease-out 0.08s both;
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  color: #e8f0eb;
+  padding: 0.7rem 1.15rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.tab:hover {
+  border-color: var(--mint);
+  transform: translateY(-1px);
+}
+
+.tab[aria-selected="true"] {
+  background: var(--mint);
+  color: var(--pitch-deep);
+  border-color: var(--mint);
+}
+
+.panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1.5rem;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  animation: rise 0.75s ease-out 0.12s both;
+}
+
+.panel h2 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin: 0 0 0.35rem;
+}
+
+.panel .lede {
+  margin: 0 0 1.15rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field input,
+.field textarea {
+  border: 1px solid #c5d4cb;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
+  color: var(--ink);
+}
+
+.field textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--pitch-light);
+  outline-offset: 1px;
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--pitch-mid);
+  color: #f4faf6;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--pitch-deep);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--pitch-mid);
+  border: 1px solid #b7c9bc;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 420px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 0.25rem;
+}
+
+.bubble {
+  max-width: 92%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--pitch-mid);
+  color: #f4faf6;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: var(--fog);
+  color: var(--ink);
+}
+
+.chat-compose {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.chat-compose textarea {
+  flex: 1;
+  min-height: 56px;
+  max-height: 140px;
+  border: 1px solid #c5d4cb;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  resize: vertical;
+}
+
+.status {
+  margin-top: 0.85rem;
+  font-size: 0.9rem;
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.status.info {
+  color: var(--warn);
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.report {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid #d5e0d8;
+}
+
+.report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.report-body {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  background: #f3f7f4;
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 480px;
+  overflow: auto;
+}
+
+.report-brief {
+  line-height: 1.55;
+  font-size: 0.95rem;
+  background: #f3f7f4;
+  border-radius: 8px;
+  padding: 1.1rem 1.2rem;
+  max-height: 560px;
+  overflow: auto;
+}
+
+.report-brief h2,
+.report-brief h3,
+.report-brief h4 {
+  font-family: var(--font-display);
+  margin: 1.1rem 0 0.45rem;
+  line-height: 1.25;
+  color: var(--pitch-deep);
+}
+
+.report-brief h2 {
+  font-size: 1.25rem;
+  margin-top: 0;
+}
+
+.report-brief h3 {
+  font-size: 1.08rem;
+}
+
+.report-brief h4 {
+  font-size: 1rem;
+}
+
+.report-brief p {
+  margin: 0.4rem 0;
+}
+
+.report-brief ul {
+  margin: 0.35rem 0 0.6rem;
+  padding-left: 1.25rem;
+}
+
+.report-brief li {
+  margin: 0.2rem 0;
+}
+
+.report-brief .numbered {
+  margin: 0.25rem 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #dcefe3;
+  color: var(--pitch-deep);
+}
+
+.badge.route-urgent {
+  background: #fde8e8;
+  color: var(--danger);
+}
+
+.badge.route-routine {
+  background: #e5f0ff;
+  color: #1e3a5f;
+}
+
+.report-emails {
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.report-emails .emails-label {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+}
+
+.report-emails ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.report-emails li {
+  margin: 0.15rem 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .chat-compose {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+}
