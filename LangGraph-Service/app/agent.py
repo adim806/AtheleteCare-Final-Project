@@ -15,6 +15,7 @@ from langgraph.graph import END, StateGraph
 
 from app.llm import plan_tools, synthesise_answer
 from app.prompts import TOOL_DESCRIPTIONS_VERSION
+from app.region_map import rag_body_regions_for_image
 from app.tools import TOOL_IMAGE, TOOL_RAG, call_image_analyser, call_rag_service
 
 
@@ -59,6 +60,7 @@ def _tool_execution_node(state: AgentState) -> dict[str, Any]:
 
     # Build RAG description from query; enrich with imaging if already run
     rag_description = query
+    rag_body_regions: list[str] = []
 
     for tool_name in plan:
         if tool_name == TOOL_IMAGE:
@@ -75,17 +77,37 @@ def _tool_execution_node(state: AgentState) -> dict[str, Any]:
                     "Tool execution: image_analyser -> "
                     f"body_region={r.get('body_region')}, "
                     f"condition_score={r.get('condition_score')}, "
-                    f"confidence={r.get('confidence')}"
+                    f"confidence={r.get('confidence')}, "
+                    f"condition_confidence={r.get('condition_confidence')}, "
+                    f"imaging_reliable={r.get('imaging_reliable')}"
                 )
-                rag_description = (
-                    f"{query} Imaging triage: body_region={r.get('body_region')}, "
-                    f"condition_score={r.get('condition_score')}."
-                )
+                if (
+                    r.get("imaging_reliable")
+                    and r.get("condition_score") is not None
+                    and r.get("body_region")
+                    and r.get("body_region") != "other"
+                ):
+                    rag_description = (
+                        f"{query} Imaging triage: body_region={r.get('body_region')}, "
+                        f"condition_score={r.get('condition_score')}."
+                    )
+                    rag_body_regions = rag_body_regions_for_image(str(r.get("body_region")))
+                elif r.get("body_region") and r.get("body_region") != "other":
+                    rag_description = (
+                        f"{query} Imaging triage: body_region={r.get('body_region')}, "
+                        "condition inconclusive."
+                    )
+                    rag_body_regions = rag_body_regions_for_image(str(r.get("body_region")))
+                else:
+                    steps.append(
+                        "Tool execution: image_analyser region unlocalized or unreliable — "
+                        "RAG uses query text only."
+                    )
             else:
                 steps.append(f"Tool execution: image_analyser failed - {out.get('error')}")
 
         elif tool_name == TOOL_RAG:
-            out = call_rag_service(rag_description)
+            out = call_rag_service(rag_description, rag_body_regions or None)
             results[TOOL_RAG] = out
             if TOOL_RAG not in used:
                 used.append(TOOL_RAG)
@@ -96,9 +118,10 @@ def _tool_execution_node(state: AgentState) -> dict[str, Any]:
                     for x in listings
                     if isinstance(x, dict) and x.get("id")
                 ]
+                filter_note = f" filter={rag_body_regions}" if rag_body_regions else ""
                 steps.append(
                     "Tool execution: rag_service -> "
-                    f"{len(listings)} listing(s); ids={ids or 'n/a'}"
+                    f"{len(listings)} listing(s); ids={ids or 'n/a'}{filter_note}"
                 )
             else:
                 steps.append(f"Tool execution: rag_service failed - {out.get('error')}")

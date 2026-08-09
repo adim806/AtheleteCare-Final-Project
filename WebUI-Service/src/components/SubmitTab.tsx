@@ -61,6 +61,14 @@ export function SubmitTab() {
         services reachable from n8n.
       </p>
 
+      <aside className="disclaimer" role="note">
+        <strong>Clinical imaging notice.</strong> Image URLs should be direct links to
+        clinical X-ray radiographs only. The imaging score (1 or 5) is an automated
+        normal-vs-abnormal proxy — not a diagnosis, fracture confirmation, or
+        return-to-play estimate. Club protocols and case history come from retrieved
+        documents, not from the image model alone.
+      </aside>
+
       <form onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor="agent">Physio / agent name</label>
@@ -86,15 +94,18 @@ export function SubmitTab() {
         </div>
 
         <div className="field">
-          <label htmlFor="images">Image URLs</label>
+          <label htmlFor="images">Image URLs (clinical X-rays only)</label>
           <textarea
             id="images"
             value={imageUrls}
             onChange={(e) => setImageUrls(e.target.value)}
-            placeholder="One URL per line or comma-separated"
+            placeholder="One public X-ray URL per line or comma-separated"
             rows={3}
             disabled={busy}
           />
+          <p className="field-hint">
+            Colour photos and non-radiograph images may be rejected by the image analyser.
+          </p>
         </div>
 
         <div className="actions">

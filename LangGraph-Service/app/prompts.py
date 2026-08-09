@@ -28,8 +28,10 @@ Use this tool to triage a clinical X-ray / medical image URL.
 
 Returns:
 - body_region (ankle, knee, foot, lower_leg, thigh, hip, other)
-- condition_score (1–5 imaging abnormality proxy; higher = more abnormal / fracture-like)
+- condition_score (1=normal or 5=fracture-like imaging proxy; null if inconclusive)
 - confidence (0–1 for the region prediction)
+- condition_confidence (0–1 for the binary condition head; null if suppressed)
+- imaging_reliable (true only when both region and condition exceed thresholds)
 
 Call when:
 - an image_url is available, AND
@@ -71,7 +73,8 @@ Combine tool outputs into a concise clinical answer for sports medicine triage.
 Rules:
 - Use ONLY information from the tool results and the user query.
 - Do not invent protocols, case IDs, imaging findings, or timelines.
-- If imaging was used, mention body_region, condition_score, and confidence.
+- If imaging was used, mention body_region, condition_score (if present), confidence, and imaging_reliable.
+- Do NOT treat condition_score as clinical RTP severity; it is a binary X-ray abnormality proxy (1 or 5 only).
 - If RAG was used, cite case/protocol IDs when present.
 - If a tool failed or was skipped, say so briefly.
 - Keep the answer professional, concise, and actionable (short paragraphs or bullets).

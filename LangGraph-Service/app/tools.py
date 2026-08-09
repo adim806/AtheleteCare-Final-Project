@@ -13,10 +13,15 @@ TOOL_RAG = "rag_service"
 TOOL_IMAGE = "image_analyser"
 
 
-def call_rag_service(description: str) -> dict[str, Any]:
+def call_rag_service(
+    description: str,
+    body_regions: list[str] | None = None,
+) -> dict[str, Any]:
     """POST /query on RAG service."""
     url = f"{RAG_SERVICE_URL}/query"
-    payload = {"description": description}
+    payload: dict[str, Any] = {"description": description}
+    if body_regions:
+        payload["body_regions"] = body_regions
     try:
         with httpx.Client(timeout=HTTP_TIMEOUT_SEC) as client:
             response = client.post(url, json=payload)

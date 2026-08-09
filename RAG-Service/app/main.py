@@ -15,6 +15,8 @@ from app.logging_config import configure_rag_logging
 
 logger = configure_rag_logging("rag.query")
 
+from app.retrieval import select_diverse_top_k
+
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 from langchain_chroma import Chroma
@@ -92,6 +94,10 @@ prompt = PromptTemplate(template=prompt_template, input_variables=["context", "d
 class QueryRequest(BaseModel):
     """POST /query request body — natural-language injury or clinical question."""
     description: str = Field(..., min_length=3, description="Description of injury or medical query")
+    body_regions: list[str] | None = Field(
+        None,
+        description="Optional metadata filter: restrict retrieval to these body_region values",
+    )
 
 
 def _format_relevance_score(relevance: float) -> str:
@@ -105,6 +111,51 @@ def _preview(text: str, limit: int = 120) -> str:
     if len(compact) <= limit:
         return compact
     return f"{compact[:limit]}..."
+
+
+def _normalize_body_regions(values: list[str] | None) -> list[str]:
+    if not values:
+        return []
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in values:
+        token = str(raw).strip().lower()
+        if token and token not in seen:
+            seen.add(token)
+            cleaned.append(token)
+    return cleaned
+
+
+def _retrieve_candidates(
+    description: str,
+    body_regions: list[str] | None,
+) -> tuple[list[tuple], str]:
+    """
+    Vector search with optional metadata filter; fallback to unfiltered if empty.
+
+    Returns (docs_with_relevance, filter_mode_label).
+    """
+    assert vector_store is not None
+    regions = _normalize_body_regions(body_regions)
+    if regions:
+        chroma_filter = {"body_region": {"$in": regions}}
+        docs = vector_store.similarity_search_with_relevance_scores(
+            description,
+            k=RETRIEVAL_K,
+            filter=chroma_filter,
+        )
+        if docs:
+            return docs, f"metadata body_region in {regions}"
+        logger.warning(
+            "Metadata filter returned 0 docs for body_regions=%s — falling back to unfiltered search",
+            regions,
+        )
+
+    docs = vector_store.similarity_search_with_relevance_scores(
+        description,
+        k=RETRIEVAL_K,
+    )
+    return docs, "unfiltered"
 
 
 def _resolve_source(metadata: dict) -> str:
@@ -177,12 +228,15 @@ async def query_rag(request: QueryRequest):
 
     try:
         logger.info("Query received (%d chars): %s", len(clean_description), _preview(clean_description, 200))
+        if request.body_regions:
+            logger.info("body_regions filter requested: %s", _normalize_body_regions(request.body_regions))
 
-        # Step 2 — Semantic search in Chroma; returns (Document, score) pairs, score 0–1
-        docs_with_relevance = vector_store.similarity_search_with_relevance_scores(
+        # Step 2 — Semantic search in Chroma; optional metadata filter + fallback
+        docs_with_relevance, filter_mode = _retrieve_candidates(
             clean_description,
-            k=RETRIEVAL_K,
+            request.body_regions,
         )
+        logger.info("Retrieval mode: %s", filter_mode)
 
         logger.info("Retrieval returned %d candidate(s) (k=%d):", len(docs_with_relevance), RETRIEVAL_K)
         for index, (doc, relevance) in enumerate(docs_with_relevance, start=1):
@@ -197,15 +251,16 @@ async def query_rag(request: QueryRequest):
             )
             logger.debug("      preview: %s", _preview(doc.page_content))
 
-        # Step 3 — Drop low-relevance chunks; keep top MAX_RESULTS
-        filtered_docs = [
+        # Step 3 — Relevance threshold, dedupe by document id, prefer one protocol
+        relevance_filtered = [
             (doc, relevance)
             for doc, relevance in docs_with_relevance
             if relevance >= MIN_RELEVANCE_SCORE
-        ][:MAX_RESULTS]
+        ]
+        filtered_docs = select_diverse_top_k(relevance_filtered, k=MAX_RESULTS)
 
         logger.info(
-            "After relevance filter (>=%.0f%%): %d document(s) kept (max=%d)",
+            "After relevance+diversity filter (>=%.0f%%): %d document(s) kept (max=%d)",
             MIN_RELEVANCE_SCORE * 100,
             len(filtered_docs),
             MAX_RESULTS,

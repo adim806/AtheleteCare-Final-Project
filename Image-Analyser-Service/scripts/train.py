@@ -29,7 +29,11 @@ from tqdm import tqdm
 SERVICE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SERVICE_ROOT))
 
-from app.config import BODY_REGION_CLASSES, NUM_CONDITION_SCORES  # noqa: E402
+from app.config import (  # noqa: E402
+    BODY_REGION_CLASSES,
+    NUM_CONDITION_CLASSES,
+    condition_class_from_row,
+)
 from app.model import ImageAnalyserModel, get_preprocess  # noqa: E402
 
 
@@ -70,7 +74,7 @@ class ConditionDataset(Dataset):
         row = self.rows[index]
         image = Image.open(self.data_root / row["filepath"]).convert("RGB")
         x = self.transform(image)
-        condition = int(row["condition_score"]) - 1  # 1..5 -> 0..4
+        condition = condition_class_from_row(row)
         return x, condition
 
 
@@ -100,7 +104,7 @@ class JointDataset(Dataset):
         x = self.transform(image)
         region = self.class_to_idx[row["body_region"]]
         if row.get("condition_known") == "1" and row.get("condition_score"):
-            condition = int(row["condition_score"]) - 1
+            condition = condition_class_from_row(row)
         else:
             condition = self.IGNORE_CONDITION
         return x, region, condition
@@ -134,6 +138,40 @@ def _stratified_split(rows: list[dict], key: str, seed: int):
         temp_rows, test_size=0.50, random_state=seed, stratify=y_temp
     )
     return train_rows, val_rows, test_rows
+
+
+def _region_class_weights(
+    rows: list[dict],
+    class_to_idx: dict[str, int],
+    device: torch.device,
+) -> torch.Tensor:
+    """Inverse-frequency weights for region CrossEntropy (mean weight = 1)."""
+    counts = torch.zeros(len(class_to_idx), dtype=torch.float32)
+    for row in rows:
+        counts[class_to_idx[row["body_region"]]] += 1.0
+    weights = counts.sum() / (len(counts) * counts.clamp(min=1.0))
+    return weights.to(device)
+
+
+def _condition_class_weights(rows: list[dict], device: torch.device) -> torch.Tensor:
+    """Inverse-frequency weights for binary condition head (FracAtlas-labelled rows)."""
+    counts = torch.zeros(NUM_CONDITION_CLASSES, dtype=torch.float32)
+    for row in rows:
+        if row.get("condition_known") == "1" and row.get("condition_score"):
+            counts[condition_class_from_row(row)] += 1.0
+    if counts.sum() == 0:
+        return torch.ones(NUM_CONDITION_CLASSES, device=device)
+    weights = counts.sum() / (len(counts) * counts.clamp(min=1.0))
+    return weights.to(device)
+
+
+def _log_class_distribution(rows: list[dict], label: str) -> None:
+    counts: dict[str, int] = {}
+    for row in rows:
+        region = row["body_region"]
+        counts[region] = counts.get(region, 0) + 1
+    parts = ", ".join(f"{k}={v}" for k, v in sorted(counts.items(), key=lambda x: -x[1]))
+    print(f"[joint] {label} region counts: {parts}")
 
 
 @torch.inference_mode()
@@ -296,9 +334,10 @@ def train_region(
                     k: v.detach().cpu().clone() for k, v in model.state_dict().items()
                 },
                 "body_region_classes": BODY_REGION_CLASSES,
-                "num_condition_scores": NUM_CONDITION_SCORES,
+                "num_condition_classes": NUM_CONDITION_CLASSES,
                 "val_region_accuracy": best_val,
                 "condition_label_map": {"normal": 1, "fractured": 5},
+                "condition_head": "binary",
             }
         else:
             wait += 1
@@ -344,7 +383,9 @@ def train_condition(
         )
 
     rows = load_rows(labels_csv)
-    train_rows, val_rows, test_rows = _stratified_split(rows, "condition_score", seed)
+    for row in rows:
+        row["_condition_class"] = str(condition_class_from_row(row))
+    train_rows, val_rows, test_rows = _stratified_split(rows, "_condition_class", seed)
     print(
         f"[condition] Split train={len(train_rows)} val={len(val_rows)} test={len(test_rows)}"
     )
@@ -416,12 +457,13 @@ def train_condition(
                     k: v.detach().cpu().clone() for k, v in model.state_dict().items()
                 },
                 "body_region_classes": BODY_REGION_CLASSES,
-                "num_condition_scores": NUM_CONDITION_SCORES,
+                "num_condition_classes": NUM_CONDITION_CLASSES,
                 "val_region_accuracy": base_meta.get("val_region_accuracy"),
                 "test_region_accuracy": base_meta.get("test_region_accuracy"),
                 "val_condition_accuracy": best_val,
                 "condition_label_map": {"normal": 1, "fractured": 5},
-                "condition_source": "FracAtlas fractured 0->1, 1->5",
+                "condition_head": "binary",
+                "condition_source": "FracAtlas binary: class 0->1, class 1->5",
             }
         else:
             wait += 1
@@ -453,6 +495,8 @@ def train_joint(
     init_checkpoint: Path | None,
     ckpt_path: Path,
     condition_loss_weight: float,
+    use_region_class_weights: bool,
+    use_condition_class_weights: bool,
 ) -> dict:
     """
     Train both heads on the combined table.
@@ -473,6 +517,7 @@ def train_joint(
     print(
         f"[joint] Split train={len(train_rows)} val={len(val_rows)} test={len(test_rows)}"
     )
+    _log_class_distribution(train_rows, "train")
 
     train_tf, eval_tf = _make_transforms()
     train_loader = DataLoader(
@@ -503,8 +548,25 @@ def train_joint(
     optimizer = torch.optim.Adam(
         [p for p in model.parameters() if p.requires_grad], lr=lr
     )
-    region_criterion = nn.CrossEntropyLoss()
-    condition_criterion = nn.CrossEntropyLoss(ignore_index=JointDataset.IGNORE_CONDITION)
+    if use_region_class_weights:
+        region_weights = _region_class_weights(train_rows, class_to_idx, device)
+        region_criterion = nn.CrossEntropyLoss(weight=region_weights)
+        print(f"[joint] Region class weights: {region_weights.tolist()}")
+    else:
+        region_weights = None
+        region_criterion = nn.CrossEntropyLoss()
+    if use_condition_class_weights:
+        condition_weights = _condition_class_weights(train_rows, device)
+        condition_criterion = nn.CrossEntropyLoss(
+            weight=condition_weights,
+            ignore_index=JointDataset.IGNORE_CONDITION,
+        )
+        print(f"[joint] Condition class weights: {condition_weights.tolist()}")
+    else:
+        condition_weights = None
+        condition_criterion = nn.CrossEntropyLoss(ignore_index=JointDataset.IGNORE_CONDITION)
+
+    print(f"[joint] condition_loss_weight={condition_loss_weight}")
 
     best_score = -1.0
     best_state = None
@@ -549,13 +611,23 @@ def train_joint(
                     k: v.detach().cpu().clone() for k, v in model.state_dict().items()
                 },
                 "body_region_classes": BODY_REGION_CLASSES,
-                "num_condition_scores": NUM_CONDITION_SCORES,
+                "num_condition_classes": NUM_CONDITION_CLASSES,
                 "val_region_accuracy": val_region,
                 "val_condition_accuracy": val_cond,
                 "val_both_known_accuracy": val_both,
                 "condition_label_map": {"normal": 1, "fractured": 5},
-                "condition_source": "FracAtlas fractured 0->1, 1->5 (joint)",
+                "condition_head": "binary",
+                "condition_source": "FracAtlas binary: class 0->1, class 1->5 (joint)",
                 "training": "joint UNIFESP+FracAtlas",
+                "condition_loss_weight": condition_loss_weight,
+                "region_class_weights": (
+                    region_weights.detach().cpu().tolist() if region_weights is not None else None
+                ),
+                "condition_class_weights": (
+                    condition_weights.detach().cpu().tolist()
+                    if condition_weights is not None
+                    else None
+                ),
                 "fracatlas_region_map": {
                     "hip": "hip",
                     "leg": "lower_leg",
@@ -620,17 +692,46 @@ def main() -> None:
     parser.add_argument(
         "--condition-loss-weight",
         type=float,
-        default=1.0,
-        help="Weight for condition loss in --phase joint",
+        default=1.5,
+        help="Weight for condition loss in --phase joint (default 1.5)",
+    )
+    parser.add_argument(
+        "--no-region-class-weights",
+        action="store_true",
+        help="Disable inverse-frequency class weights for region head",
+    )
+    parser.add_argument(
+        "--no-condition-class-weights",
+        action="store_true",
+        help="Disable inverse-frequency class weights for condition head",
     )
     parser.add_argument(
         "--skip-region-if-checkpoint",
         action="store_true",
         help="In --phase both, skip region training if checkpoint already exists",
     )
+    parser.add_argument(
+        "--pretrain-region",
+        action="store_true",
+        help="With --phase joint: train region head on UNIFESP first, then joint from that checkpoint",
+    )
     args = parser.parse_args()
 
     if args.phase == "joint":
+        init_checkpoint: Path | None = None
+        if args.pretrain_region:
+            region_ckpt = args.checkpoint.with_name(f"{args.checkpoint.stem}.region{args.checkpoint.suffix}")
+            train_region(
+                args.region_data,
+                args.epochs_region,
+                args.batch_size,
+                args.lr,
+                args.seed,
+                args.patience,
+                None,
+                region_ckpt,
+            )
+            init_checkpoint = region_ckpt
         train_joint(
             args.joint_data,
             args.joint_labels,
@@ -639,9 +740,11 @@ def main() -> None:
             args.lr,
             args.seed,
             args.patience,
-            None,
+            init_checkpoint,
             args.checkpoint,
             args.condition_loss_weight,
+            use_region_class_weights=not args.no_region_class_weights,
+            use_condition_class_weights=not args.no_condition_class_weights,
         )
         return
 

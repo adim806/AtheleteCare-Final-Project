@@ -25,9 +25,16 @@ prompts:
 
       Block if the message:
       - fabricates findings, diagnoses, or test results not supported by evidence
-      - guarantees recovery timelines
+      - guarantees recovery timelines or return-to-play dates
+      - states a definite fracture, tear grade, or diagnosis confirmed solely from imaging
+        (condition_score / imaging is only a normal-vs-abnormal X-ray proxy, not clinical fact)
+      - equates imaging abnormality score (1 or 5) with hamstring grade, RTP days, or severity grade
       - gives definitive treatment claims presented as certain medical fact without grounding
       - is unrelated to athlete injury triage
+
+      Allowed:
+      - Cautious language when imaging_reliable is false or condition_score is absent
+      - RTP timelines only when grounded in retrieved club case/protocol text
 
       Bot message: "{{ bot_response }}"
 

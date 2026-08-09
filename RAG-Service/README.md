@@ -34,7 +34,7 @@ The system implements a **classic RAG architecture** in two phases: **offline in
 | **Augment** | ✅ | Inject retrieved chunks into the LLM prompt as `{context}` | `main.py` — `context_blocks` → `prompt.format()` (query Steps 4–5) |
 | **Generate** | ✅ | Local GGUF model produces `insight` from context + query | `main.py` — `llm.invoke()` (query Step 5) |
 
-**Not yet implemented (quality enhancements, not core RAG structure):** metadata filters (`body_region`, `date`), deduplication by document ID, hybrid BM25 + vector search, and cross-encoder re-ranking. See [Roadmap](#roadmap-not-yet-implemented) below.
+**Quality enhancements (partial):** `body_region` metadata filter on query (optional), deduplication by document ID, and protocol diversity in top-3. Not yet: temporal `date` filter, hybrid BM25, cross-encoder re-ranking. See [Roadmap](#roadmap-not-yet-implemented) below.
 
 ```mermaid
 flowchart LR
@@ -454,7 +454,12 @@ docker run -p 8000:8000 \
 
 ## Roadmap (not yet implemented)
 
-- Chroma metadata `filter` by `body_region` on query
 - Temporal filter for "past cases from last year" using `date`
 - Prompt/context cleanup for smaller models
 - Hybrid BM25 + cross-encoder re-ranking (see project spec)
+
+### Implemented retrieval improvements
+
+- Optional `body_regions` on `POST /query` — Chroma metadata filter with unfiltered fallback
+- Dedupe by document `id` (best chunk per parent document)
+- Diversity: prefer one `protocol` in top-3 when available

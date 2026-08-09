@@ -1,8 +1,7 @@
 """
 ResNet-50 dual-head model — AthleteCare Image Analyser (Service 2).
 
-Architecture matches the assignment (frozen backbone + class head + 1–5 score
-head). Labels: soccer body regions + other; severity head kept for assignment.
+Architecture: frozen backbone + region head + binary condition head (normal vs fracture-like).
 """
 
 from __future__ import annotations
@@ -14,13 +13,13 @@ import torch
 import torch.nn as nn
 from torchvision.models import ResNet50_Weights, resnet50
 
-from app.config import BODY_REGION_CLASSES, MODEL_CHECKPOINT, NUM_CONDITION_SCORES
+from app.config import BODY_REGION_CLASSES, MODEL_CHECKPOINT, NUM_CONDITION_CLASSES
 
 logger = logging.getLogger("image_analyser")
 
 
 class ImageAnalyserModel(nn.Module):
-    """Frozen ResNet-50 backbone + body-region classifier + severity head."""
+    """Frozen ResNet-50 backbone + body-region classifier + binary condition head."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -34,7 +33,7 @@ class ImageAnalyserModel(nn.Module):
             param.requires_grad = False
 
         self.region_head = nn.Linear(feature_dim, len(BODY_REGION_CLASSES))
-        self.condition_head = nn.Linear(feature_dim, NUM_CONDITION_SCORES)
+        self.condition_head = nn.Linear(feature_dim, NUM_CONDITION_CLASSES)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         features = self.backbone(x)
@@ -73,9 +72,9 @@ def build_model(
             metrics = []
             if isinstance(ckpt, dict):
                 if "test_region_accuracy" in ckpt:
-                    metrics.append(f"test_acc={ckpt['test_region_accuracy']:.3f}")
-                if "val_region_accuracy" in ckpt:
-                    metrics.append(f"val_acc={ckpt['val_region_accuracy']:.3f}")
+                    metrics.append(f"test_region={ckpt['test_region_accuracy']:.3f}")
+                if "test_condition_accuracy" in ckpt:
+                    metrics.append(f"test_condition={ckpt['test_condition_accuracy']:.3f}")
             logger.info("Loaded checkpoint %s %s", path, " ".join(metrics))
         except Exception as exc:  # noqa: BLE001
             logger.warning("Failed to load checkpoint %s: %s — using untrained heads", path, exc)

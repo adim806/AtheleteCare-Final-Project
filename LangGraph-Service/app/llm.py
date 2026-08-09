@@ -152,7 +152,8 @@ def _heuristic_synthesis(
                 "Imaging triage: "
                 f"body_region={r.get('body_region')}, "
                 f"condition_score={r.get('condition_score')}, "
-                f"confidence={r.get('confidence')}."
+                f"confidence={r.get('confidence')}, "
+                f"imaging_reliable={r.get('imaging_reliable')}."
             )
         else:
             parts.append(f"Imaging triage unavailable: {img.get('error')}")
