@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
+import { Scan, TriangleAlert } from "lucide-react";
 import {
   parseImageUrls,
   submitTriage,
   type TriageResult,
 } from "../api/triage";
-import { renderBriefMarkdown } from "../lib/renderBrief";
+import { MedicalReport } from "./MedicalReport";
+import { SubmitLoadingLabel } from "./SubmitLoadingLabel";
+import { TriageSkeleton } from "./TriageSkeleton";
 
 export function SubmitTab() {
   const [agentName, setAgentName] = useState("");
@@ -50,11 +53,9 @@ export function SubmitTab() {
   }
 
   const meta = result?.meta ?? {};
-  const looksLikeJsonDump =
-    !!result && result.displayText.trimStart().startsWith("{");
 
   return (
-    <section className="panel" aria-label="Injury submission">
+    <section className="panel submit-panel" aria-label="Injury submission">
       <h2>Submit injury report</h2>
       <p className="lede">
         Posts to the n8n webhook (proxied). Requires n8n active and backend
@@ -62,104 +63,82 @@ export function SubmitTab() {
       </p>
 
       <aside className="disclaimer" role="note">
-        <strong>Clinical imaging notice.</strong> Image URLs should be direct links to
-        clinical X-ray radiographs only. The imaging score (1 or 5) is an automated
-        normal-vs-abnormal proxy — not a diagnosis, fracture confirmation, or
-        return-to-play estimate. Club protocols and case history come from retrieved
-        documents, not from the image model alone.
+        <TriangleAlert className="disclaimer-icon" size={18} aria-hidden="true" />
+        <div>
+          <strong>Clinical imaging notice.</strong> Image URLs should be direct links to
+          clinical X-ray radiographs only. The imaging score (1 or 5) is an automated
+          normal-vs-abnormal proxy — not a diagnosis, fracture confirmation, or
+          return-to-play estimate. Club protocols and case history come from retrieved
+          documents, not from the image model alone.
+        </div>
       </aside>
 
       <form onSubmit={onSubmit}>
-        <div className="field">
-          <label htmlFor="agent">Physio / agent name</label>
-          <input
-            id="agent"
-            value={agentName}
-            onChange={(e) => setAgentName(e.target.value)}
-            placeholder="Optional"
-            disabled={busy}
-          />
+        <div className="form-section">
+          <h3 className="form-section-header">Patient &amp; clinical context</h3>
+          <div className="field">
+            <label htmlFor="agent">Physio / agent name</label>
+            <input
+              id="agent"
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="Optional"
+              disabled={busy}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="report">Clinical report</label>
+            <textarea
+              id="report"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Player, mechanism, pain, imaging, clinical request…"
+              required
+              disabled={busy}
+            />
+          </div>
         </div>
 
-        <div className="field">
-          <label htmlFor="report">Clinical report</label>
-          <textarea
-            id="report"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Player, mechanism, pain, imaging, clinical request…"
-            required
-            disabled={busy}
-          />
-        </div>
-
-        <div className="field">
-          <label htmlFor="images">Image URLs (clinical X-rays only)</label>
-          <textarea
-            id="images"
-            value={imageUrls}
-            onChange={(e) => setImageUrls(e.target.value)}
-            placeholder="One public X-ray URL per line or comma-separated"
-            rows={3}
-            disabled={busy}
-          />
-          <p className="field-hint">
-            Colour photos and non-radiograph images may be rejected by the image analyser.
-          </p>
+        <div className="form-section border-t border-slate-200 pt-4 mt-4">
+          <h3 className="form-section-header">Imaging analysis</h3>
+          <div className="field">
+            <label htmlFor="images">Image URLs (clinical X-rays only)</label>
+            <div className="imaging-dropzone">
+              <div className="imaging-dropzone-label">
+                <Scan size={16} aria-hidden="true" />
+                Enter X-ray URL or paste links below
+              </div>
+              <textarea
+                id="images"
+                value={imageUrls}
+                onChange={(e) => setImageUrls(e.target.value)}
+                placeholder="One public X-ray URL per line or comma-separated"
+                rows={3}
+                disabled={busy}
+              />
+            </div>
+            <p className="field-hint">
+              Colour photos and non-radiograph images may be rejected by the image analyser.
+            </p>
+          </div>
         </div>
 
         <div className="actions">
           <button className="btn" type="submit" disabled={busy || !text.trim()}>
-            {busy ? "Running triage…" : "Submit to AthleteCare"}
+            {busy ? <SubmitLoadingLabel active={busy} /> : "Submit to AthleteCare"}
           </button>
         </div>
       </form>
 
+      <TriageSkeleton active={busy} />
+
       {info && (
-        <p className={`status ${result && !result.ok ? "info" : "ok"}`}>{info}</p>
+        <p className={`status ${result?.ok ? "ok" : "info"}`}>{info}</p>
       )}
       {error && <p className="status error">{error}</p>}
 
-      {result && (
-        <div className="report">
-          <div className="report-meta">
-            <span>HTTP {result.status}</span>
-            {meta.route && (
-              <span className={`badge route-${meta.route}`}>
-                Route: {meta.route}
-              </span>
-            )}
-            {meta.severity && <span>Severity: {meta.severity}/5</span>}
-            {meta.imagingScore && (
-              <span>Imaging score: {meta.imagingScore}/5</span>
-            )}
-          </div>
-
-          {meta.emails && (
-            <div className="report-emails">
-              <span className="emails-label">Notified</span>
-              <ul>
-                {Object.entries(meta.emails).map(([role, addr]) => (
-                  <li key={role}>
-                    <strong>{role.replace(/_/g, " ")}</strong>: {addr}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {looksLikeJsonDump ? (
-            <pre className="report-body">{result.displayText}</pre>
-          ) : (
-            <div
-              className="report-brief"
-              dangerouslySetInnerHTML={{
-                __html: renderBriefMarkdown(result.displayText),
-              }}
-            />
-          )}
-        </div>
-      )}
+      {result && <MedicalReport result={result} meta={meta} />}
     </section>
   );
 }
