@@ -15,8 +15,16 @@ Independent services (Python services use **their own** virtual environments; We
 | WebUI (React) | `WebUI-Service/` | `npm` | 8004 |
 
 Do **not** use a shared root venv for Python services — dependencies differ and are installed per service.
+<img width="2557" height="1265" alt="4" src="https://github.com/user-attachments/assets/2cf5253f-a015-413f-9dcd-cc3a5c21b614" />
+
+<img width="2277" height="574" alt="5" src="https://github.com/user-attachments/assets/098b8c50-8999-4d7d-b78a-fd5dd4bcc261" />
 
 ---
+<img width="1913" height="985" alt="3" src="https://github.com/user-attachments/assets/bfca2f7c-dbfe-4741-86bc-8ec4c0da9b59" />
+
+<img width="1917" height="910" alt="צילום מסך 2026-08-10 135110" src="https://github.com/user-attachments/assets/8e9787bb-a098-4315-a1e1-f2ee741c48af" />
+
+<img width="1913" height="984" alt="1" src="https://github.com/user-attachments/assets/34e62cd4-9ff8-4c46-a122-7059da0539d3" />
 
 ## First-time setup
 
