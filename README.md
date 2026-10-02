@@ -2,17 +2,37 @@
 
 Monorepo for the course final project ([GitHub](https://github.com/adim806/AtheleteCare-Final-Project)).
 
+## Project Overview
+**AthleteCare** is an AI-driven clinical triage and knowledge management system designed for professional sports clubs. The platform streamlines the handling of player injury reports by automatically extracting clinical data, analyzing medical imaging (e.g., X-rays), and retrieving relevant club protocols. It uses a dynamic AI agent to evaluate severity and generate structured, markdown-formatted clinical briefs, routing urgent cases to the appropriate medical and management staff in real time.
+
+## System Architecture & Information Flow
+The project is built as a Monorepo containing several independent microservices. The core workflow is orchestrated by **n8n**, which receives injury reports via webhook, validates them, and routes requests to the relevant AI services. 
+
+### Core Services
+The repository consists of the following isolated services, each responsible for a specific domain in the triage pipeline:
+
+* **Guardrails Service (Port 8000):** Acts as the safety layer. It validates incoming webhook payloads to ensure they contain legitimate medical reports (filtering out spam) and verifies the final generated clinical briefs to ensure they meet strict medical safety guidelines before distribution.
+* **RAG Service (Port 8001):** The club's internal knowledge base. It uses Retrieval-Augmented Generation to search and retrieve historical injury precedents, specific club protocols, and Return-to-Play (RTP) guidelines based on the player's clinical description.
+* **Image Analyser Service (Port 8002):** The computer vision component. It analyzes attached clinical images (like X-rays) to determine the injured body region, assign a condition severity score, and provide a confidence metric to assist the triage agent.
+* **LangGraph Agent Service (Port 8003):** The complex reasoning engine. Used for "multi-step" cases that require both imaging triage and club protocol retrieval. It coordinates calls to multiple tools in a single chain to synthesize a comprehensive clinical assessment.
+* **WebUI Service (Port 8004):** A React-based frontend application that provides a user-friendly interface for medical staff to submit injury reports and view the system's analysis.
+
+---
+
+## Setup & Execution
+
 Clone this repo and open the **repository root** in your editor (the folder that contains `Guardrails-Service/`, `RAG-Service/`, `Image-Analyser-Service/`, `LangGraph-Service/`, and `WebUI-Service/`).
 
-Independent services (Python services use **their own** virtual environments; WebUI uses npm):
+Independent services (Python services use **their own** virtual environments; WebUI uses npm). 
+**Click on the service name below to view its specific documentation:**
 
 | Service | Folder | Runtime | Port |
 |---------|--------|---------|------|
-| Guardrails | `Guardrails-Service/` | `.venv311` | 8000 |
-| RAG | `RAG-Service/` | `.venv` | 8001 |
-| Image Analyser | `Image-Analyser-Service/` | `.venv` | 8002 |
-| LangGraph Agent | `LangGraph-Service/` | `.venv` | 8003 |
-| WebUI (React) | `WebUI-Service/` | `npm` | 8004 |
+| [Guardrails](Guardrails-Service/README.md) | `Guardrails-Service/` | `.venv311` | 8000 |
+| [RAG](RAG-Service/README.md) | `RAG-Service/` | `.venv` | 8001 |
+| [Image Analyser](Image-Analyser-Service/README.md) | `Image-Analyser-Service/` | `.venv` | 8002 |
+| [LangGraph Agent](LangGraph-Service/README.md) | `LangGraph-Service/` | `.venv` | 8003 |
+| [WebUI (React)](WebUI-Service/README.md) | `WebUI-Service/` | `npm` | 8004 |
 
 Do **not** use a shared root venv for Python services — dependencies differ and are installed per service.
 
