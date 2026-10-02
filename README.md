@@ -29,6 +29,7 @@ Do **not** use a shared root venv for Python services — dependencies differ an
 ## First-time setup
 
 ### Guardrails
+🔗 **[View Guardrails-Service Documentation](Guardrails-Service/README.md)**
 
 ```powershell
 cd Guardrails-Service
@@ -42,6 +43,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### RAG
+🔗 **[View RAG-Service Documentation](RAG-Service/README.md)**
 
 ```powershell
 cd RAG-Service
@@ -69,6 +71,15 @@ npm run dev
 See [WebUI-Service/README.md](WebUI-Service/README.md).
 
 ---
+
+### Image-Analayser-Service
+
+🔗 **[View Image-Analayser-Service Documentation](Image-Analayser-Service/README.md)**
+
+### LangGraph-Service
+
+🔗 **[View LangGraph-Service Documentation](LangGraph-Service/README.md)**
+
 
 ## Run both (two terminals)
 
