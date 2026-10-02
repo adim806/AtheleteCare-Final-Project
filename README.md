@@ -15,7 +15,9 @@ Independent services (Python services use **their own** virtual environments; We
 | WebUI (React) | `WebUI-Service/` | `npm` | 8004 |
 
 Do **not** use a shared root venv for Python services — dependencies differ and are installed per service.
-<img width="2557" height="1265" alt="4" src="https://github.com/user-attachments/assets/2cf5253f-a015-413f-9dcd-cc3a5c21b614" />
+
+# N8N Workflow
+<img width="2557" height="1065" alt="4" src="https://github.com/user-attachments/assets/2cf5253f-a015-413f-9dcd-cc3a5c21b614" />
 
 <img width="2277" height="574" alt="5" src="https://github.com/user-attachments/assets/098b8c50-8999-4d7d-b78a-fd5dd4bcc261" />
 
@@ -59,6 +61,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### WebUI
+🔗 **[View WebUI-Service Documentation](WebUI-Service/README.md)**
 
 ```powershell
 cd WebUI-Service
@@ -67,8 +70,6 @@ copy .env.example .env
 # Set N8N_WEBHOOK_URL; ensure Ollama is running (ollama pull llama3)
 npm run dev
 ```
-
-See [WebUI-Service/README.md](WebUI-Service/README.md).
 
 ---
 
