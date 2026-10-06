@@ -12,7 +12,7 @@ Clone this repo and open the **repository root** in your editor (the folder that
 ## Project Overview
 **AthleteCare** is an AI-driven **clinical decision support** and knowledge management system designed for professional football club medical department. The platform streamlines the handling of player injury reports by automatically extracting clinical data, analyzing medical imaging (e.g., X-rays), and retrieving relevant club protocols. It uses a dynamic AI agent to evaluate severity and generate structured, markdown-formatted clinical briefs, routing urgent cases to the appropriate medical and management staff in real time.
 
-## ⚙️ n8n Orchestration (Port 5678)
+## ⚙️ n8n Orchestration 
 *Note: Not stored as application code in this repository, but central to the Submit report process.*
 <img width="2277" height="574" alt="5" src="https://github.com/user-attachments/assets/098b8c50-8999-4d7d-b78a-fd5dd4bcc261" />
 **Workflow Execution:**
